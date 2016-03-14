@@ -1,0 +1,240 @@
+---
+title: "Milestone Report"
+author: "Grizzly Koala Bear"
+output: html_document
+---
+
+```{r echo=FALSE, message=FALSE}
+library(httr)
+library(stringi)
+library(ggplot2)
+library(tagcloud)
+
+loadCourseFile <- function(rdsFile, sampleRdsFile, sampleSize, sourceFile) {
+  lines <- NULL
+  sampleLines <- NULL
+  if(!file.exists(rdsFile)){
+    lines <- readLines(sourceFile, encoding = "UTF-8")
+    lines <- stri_replace_all_regex(lines, "\u2019|`","'")
+    lines <- stri_replace_all_regex(lines, "\u201c|\u201d|u201f|``",'"')
+    saveRDS(lines, rdsFile)
+    sampleLines <- sample(lines, sampleSize)
+    saveRDS(sampleLines, sampleRdsFile)
+  } else {
+    lines <- readRDS(rdsFile)
+    sampleLines <- readRDS(sampleRdsFile)
+  }
+  result <- list(lines, sampleLines)
+  return(result)
+}
+```
+
+## Introduction
+
+The goal of this report is to display the following:
+
+ + Demonstrate that I've downloaded the data and have successfully loaded it in.
+ + Create a basic report of summary statistics about the data sets.
+ + Report any interesting findings that I have amassed so far.
+
+Please check [https://github.com/grizzlykoalabear/DsCapstoneReport](https://github.com/grizzlykoalabear/DsCapstoneReport) for the source code of this report as some R functionality is hidden.
+
+## Getting and Cleaning the Data
+
+This portion of the report will demonstrate that I've downloaded the data and have successfully loaded it in.
+
+### Downloading and Extracting the Data
+
+This block of code will check to see if we have already downloaded and extracted the Coursera SwiftKey files and if we haven't, then download and extract the file.
+
+```{r message=FALSE, warning=FALSE}
+sourceFile <- "https://d396qusza40orc.cloudfront.net/dsscapstone/dataset/Coursera-SwiftKey.zip"
+workingDir <- getwd()
+dataDir <- paste(workingDir, "/data", sep = "")
+if(!dir.exists(dataDir)){
+  dir.create(dataDir)
+}
+archive <- paste(workingDir, "/data/Coursera-SwiftKey.zip", sep = "")
+if(!file.exists(archive)){
+  download.file(sourceFile, archive, method = "curl", mode = "wb")
+}
+extract <- paste(workingDir, "/data/final", sep = "")
+if(!dir.exists(extract)){
+  unzip(archive, list = FALSE, overwrite = TRUE, exdir = dataDir)
+}
+```
+
+```{r echo=FALSE}
+remove(sourceFile); remove(dataDir); remove(archive); remove(extract)
+```
+
+### Loading the Data
+
+This block of code will load the data we have downloaded into our environment and cache the result for quicker loading in future executions.
+
+```{r message=FALSE, warning=FALSE}
+blogData <- loadCourseFile(
+  paste(workingDir, "/data/final/en_US/en_US.blogs.rds", sep = ""),
+  paste(workingDir, "/data/final/en_US/en_US.blogs.sample.rds", sep = ""),
+  5120,
+  paste(workingDir, "/data/final/en_US/en_US.blogs.txt", sep = "")
+)
+englishBlogsData <- unlist(blogData[1])
+sampleEnglishBlogsData <- unlist(blogData[2])
+
+newsData <- loadCourseFile(
+  paste(workingDir, "/data/final/en_US/en_US.news.rds", sep = ""),
+  paste(workingDir, "/data/final/en_US/en_US.news.sample.rds", sep = ""),
+  5120,
+  paste(workingDir, "/data/final/en_US/en_US.news.txt", sep = "")
+)
+englishNewsData <- unlist(newsData[1])
+sampleEnglishNewsData <- unlist(newsData[2])
+
+twitterData <- loadCourseFile(
+  paste(workingDir, "/data/final/en_US/en_US.twitter.rds", sep = ""),
+  paste(workingDir, "/data/final/en_US/en_US.twitter.sample.rds", sep = ""),
+  5120,
+  paste(workingDir, "/data/final/en_US/en_US.twitter.txt", sep = "")
+)
+englishTwitterData <- unlist(twitterData[1])
+sampleEnglishTwitterData <- unlist(twitterData[2])
+```
+
+```{r echo=FALSE, cache=TRUE}
+blogSize <- file.info("data/final/en_US/en_US.blogs.txt")$size / 1024 ^ 2
+newsSize <- file.info("data/final/en_US/en_US.news.txt")$size / 1024 ^ 2
+twitterSize <- file.info("data/final/en_US/en_US.twitter.txt")$size / 1024 ^ 2
+blogLength <- length(englishBlogsData)
+newsLength <- length(englishNewsData)
+twitterLength <- length(englishTwitterData)
+```
+
+```{r echo=FALSE}
+remove(blogData); remove(newsData); remove(twitterData)
+```
+
+## Exploratory Data Analysis
+
+This portion of the report will provide to you summary statistics about the data sets.
+
+### en_US.blogs.txt
+
+en_US.blogs.txt is `r blogSize` MB in size and has a length of `r blogLength` characters.
+
+Here is a summary of the character data within en_US.blogs.txt:
+
+```{r warning=FALSE, cache=TRUE}
+summary(nchar(englishBlogsData))
+stri_stats_general(englishBlogsData)
+```
+
+Here is a summary of the word data within a sampling of en_US.blogs.txt:
+
+```{r warning=FALSE, cache=TRUE}
+englishBlogsWords <- stri_count_words(sampleEnglishBlogsData)
+summary(englishBlogsWords)
+qplot(englishBlogsWords, binwidth = 8)
+```
+
+### en_US.news.txt
+
+en_US.news.txt is `r newsSize` MB in size and has a length of `r newsLength` characters.
+
+Here is a summary of the character data within en_US.news.txt:
+
+```{r warning=FALSE, cache=TRUE}
+summary(nchar(englishNewsData))
+stri_stats_general(englishNewsData)
+```
+
+Here is a summary of the word data within a sampling of en_US.news.txt:
+
+```{r warning=FALSE, cache=TRUE}
+englishNewsWords <- stri_count_words(sampleEnglishNewsData)
+summary(englishNewsWords)
+qplot(englishNewsWords, binwidth = 8)
+```
+
+### en_US.twitter.txt
+
+en_US.twitter.txt is `r twitterSize` MB in size and has a length of `r twitterLength` characters.
+
+Here is a summary of the character data within en_US.twitter.txt:
+
+```{r warning=FALSE, cache=TRUE}
+summary(nchar(englishTwitterData))
+stri_stats_general(englishTwitterData)
+```
+
+Here is a summary of the word data within a sampling of en_US.twitter.txt:
+
+```{r warning=FALSE, cache=TRUE}
+englishTwitterWords <- stri_count_words(sampleEnglishTwitterData)
+summary(englishTwitterWords)
+qplot(englishTwitterWords, binwidth = 8)
+```
+
+## Interesting Findings
+
+This portion of the report will provide to you a list of interesting findings found during the analysis of the data sets.
+
+The three data sets covered in the last section total to `r blogSize + newsSize + twitterSize` MB in size with a total of `r blogLength + newsLength + twitterLength` characters in length.
+
+### Twitter Tagcloud
+
+```{r echo=FALSE}
+twitterSorted <- sort(englishTwitterData)
+twitterRle <- rle(twitterSorted)
+remove(twitterSorted); remove(englishTwitterWords); remove(englishTwitterData)
+```
+
+As you can see from the tagcloud below, people on Twitter are very thankful.
+
+```{r echo=FALSE, cache=TRUE}
+tagcloud(twitterRle$values[twitterRle$length > 50], twitterRle$length[twitterRle$length > 50], algorithm = "oval")
+```
+
+```{r echo=FALSE}
+remove(twitterRle)
+```
+
+### News Tagcloud
+
+```{r echo=FALSE}
+newsSorted <- sort(englishNewsData)
+newsRle <- rle(newsSorted)
+remove(newsSorted); remove(englishNewsWords); remove(englishNewsData)
+```
+
+The tagcloud for news is useless, but here it is anyway ... :-)
+
+```{r echo=FALSE, cache=TRUE}
+tagcloud(newsRle$values[newsRle$length > 1][1:10], newsRle$length[newsRle$length > 1][1:10], algorithm= "oval")
+```
+
+```{r echo=FALSE}
+remove(newsRle)
+```
+
+### Blog Tagcloud
+
+```{r echo=FALSE}
+blogSorted <- sort(englishBlogsData)
+blogRle <- rle(blogSorted)
+remove(blogSorted); remove(englishBlogsWords); remove(englishBlogsData)
+```
+
+The tagcloud for blog is also useless, but not as bad as news ... cool finding? Cooking is big.
+
+```{r echo=FALSE, cache=TRUE}
+tagcloud(blogRle$values[blogRle$length > 1][1:10], blogRle$length[blogRle$length > 1][1:10], algorithm= "oval")
+```
+
+```{r echo=FALSE}
+remove(blogRle)
+```
+
+## Additional Thoughts
+
+I believe that covers everything that is graded on for this report. On to the rest of the course, the slide deck, and the Shiny app.
